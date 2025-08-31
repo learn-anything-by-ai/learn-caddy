@@ -1,0 +1,83 @@
+# Hugo 博客站点配置示例
+
+baseURL = "https://blog.example.com"
+languageCode = "zh-cn"
+title = "我的个人博客"
+theme = "your-theme"
+
+# 作者信息
+[author]
+  name = "Your Name"
+  email = "your.email@example.com"
+
+# 菜单配置
+[[menu.main]]
+  name = "首页"
+  url = "/"
+  weight = 1
+
+[[menu.main]]
+  name = "关于"
+  url = "/about/"
+  weight = 2
+
+[[menu.main]]
+  name = "文章"
+  url = "/posts/"
+  weight = 3
+
+[[menu.main]]
+  name = "标签"
+  url = "/tags/"
+  weight = 4
+
+# 参数配置
+[params]
+  description = "这是我的个人博客"
+  keywords = ["博客", "技术", "生活"]
+  favicon = "/favicon.ico"
+  
+  # SEO 优化
+  googleAnalytics = "UA-XXXXXXXX-X"
+  
+  # 社交媒体链接
+  github = "https://github.com/yourusername"
+  twitter = "https://twitter.com/yourusername"
+  
+  # 评论系统
+  [params.gitalk]
+    enable = true
+    clientID = "your-github-app-client-id"
+    clientSecret = "your-github-app-client-secret"
+    repo = "your-blog-comments-repo"
+    owner = "yourusername"
+    admin = ["yourusername"]
+
+# 构建配置
+[build]
+  publish = "public"
+  command = "hugo --gc --minify"
+  
+# 输出格式
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+  page = ["HTML"]
+  section = ["HTML", "RSS"]
+
+# 标记配置
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    style = "github"
+    lineNos = true
+
+# 压缩配置
+[minify]
+  disableCSS = false
+  disableHTML = false
+  disableJS = false
+  disableJSON = false
+  disableSVG = false
+  disableXML = false

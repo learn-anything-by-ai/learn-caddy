@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Caddy 反向代理
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2019:2019"  # 管理 API
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./data:/data
+      - ./config:/config
+      - ./logs:/logs
+    networks:
+      - web
+    depends_on:
+      - app1
+      - app2
+    restart: unless-stopped
+
+  # 应用服务器 1
+  app1:
+    image: nginx:alpine
+    volumes:
+      - ./app1:/usr/share/nginx/html
+    networks:
+      - web
+    restart: unless-stopped
+
+  # 应用服务器 2  
+  app2:
+    image: nginx:alpine
+    volumes:
+      - ./app2:/usr/share/nginx/html
+    networks:
+      - web
+    restart: unless-stopped
+
+  # 数据库
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - web
+    restart: unless-stopped
+
+  # Redis 缓存
+  redis:
+    image: redis:alpine
+    networks:
+      - web
+    restart: unless-stopped
+
+networks:
+  web:
+    driver: bridge
+
+volumes:
+  db_data:

@@ -1,0 +1,17 @@
+{
+  "name": "caddy-load-balancing-demo",
+  "version": "1.0.0",
+  "description": "Demo servers for Caddy load balancing example",
+  "main": "server1.js",
+  "scripts": {
+    "start1": "node server1.js",
+    "start2": "node server2.js",
+    "start3": "node server3.js",
+    "start-all": "npm run start1 & npm run start2 & npm run start3"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "author": "Caddy Learning Project",
+  "license": "MIT"
+}

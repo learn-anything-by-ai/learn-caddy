@@ -1,0 +1,38 @@
+# 基础认证配置
+localhost:8080 {
+    # 静态文件服务
+    file_server
+    
+    # 保护 /admin 路径
+    @admin {
+        path /admin/*
+    }
+    
+    # 基础认证
+    basic_auth @admin {
+        # 用户名: admin, 密码: password
+        admin $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNqq9qy5SfHK9z8ZKrTv7sGy6
+        # 用户名: user, 密码: 123456  
+        user $2a$14$EZ20qsB.g1c5UXHG/yZgJe5GFWq3Nz2qY7xv.5XHrQ1.wVXzqNzpe
+    }
+    
+    # 保护 /api 路径 - 这里演示概念，实际需要 JWT 插件
+    @api {
+        path /api/*
+    }
+    
+    respond @api "API 端点需要 JWT 认证" 401
+    
+    # 登录页面
+    route /login {
+        respond "登录页面 - 请使用用户名: admin, 密码: password"
+    }
+    
+    # 公共区域
+    respond / "欢迎访问！公共区域无需认证。访问 /admin/ 需要认证。"
+    
+    # 访问日志
+    log {
+        output file logs/auth.log
+    }
+}

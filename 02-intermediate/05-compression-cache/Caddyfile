@@ -1,0 +1,85 @@
+# 压缩和缓存优化配置
+localhost:8080 {
+    # 根目录
+    root * /var/www/html
+    
+    # 启用文件服务器
+    file_server
+    
+    # Gzip 压缩配置
+    encode {
+        # 启用 gzip 和 zstd 压缩
+        gzip 6
+        zstd
+        
+        # 压缩文件类型
+        match {
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/xml*
+        }
+        
+        # 最小压缩大小
+        minimum_length 1024
+    }
+    
+    # 静态资源缓存策略
+    @static {
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    
+    header @static {
+        # 缓存一年
+        Cache-Control "public, max-age=31536000, immutable"
+        # 强验证
+        ETag
+    }
+    
+    # HTML 文件缓存策略
+    @html {
+        path *.html
+    }
+    
+    header @html {
+        # 缓存1小时，但允许协商缓存
+        Cache-Control "public, max-age=3600, must-revalidate"
+        ETag
+    }
+    
+    # API 响应不缓存
+    @api {
+        path /api/*
+    }
+    
+    header @api {
+        Cache-Control "no-cache, no-store, must-revalidate"
+        Pragma "no-cache"
+        Expires "0"
+    }
+    
+    # 预压缩文件支持
+    @precompressed {
+        path *.css.gz *.js.gz *.html.gz
+    }
+    
+    header @precompressed {
+        Content-Encoding gzip
+    }
+    
+    # 性能相关头部
+    header {
+        # 启用 Keep-Alive
+        Connection "keep-alive"
+        # 内容类型
+        X-Content-Type-Options "nosniff"
+        # 安全头部
+        X-Frame-Options "SAMEORIGIN"
+    }
+    
+    # 访问日志 - 包含缓存信息
+    log {
+        output file logs/performance.log
+        format json
+    }
+}

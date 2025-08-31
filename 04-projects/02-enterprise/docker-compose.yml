@@ -1,0 +1,252 @@
+version: '3.8'
+
+services:
+  # Caddy 负载均衡器
+  caddy:
+    image: caddy:2.7-alpine
+    container_name: enterprise-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+      - "2019:2019"   # Caddy Admin API
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./errors:/var/www/errors:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./logs:/var/log/caddy
+    environment:
+      - CADDY_ADMIN=0.0.0.0:2019
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - app1
+      - app2
+      - app3
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # 应用服务器 1
+  app1:
+    image: node:18-alpine
+    container_name: enterprise-app1
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./app:/app:ro
+      - app1_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - SERVER_ID=app1
+      - DATABASE_URL=postgresql://user:password@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+    command: ["node", "server.js"]
+    networks:
+      - backend
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 应用服务器 2
+  app2:
+    image: node:18-alpine
+    container_name: enterprise-app2
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./app:/app:ro
+      - app2_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - SERVER_ID=app2
+      - DATABASE_URL=postgresql://user:password@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+    command: ["node", "server.js"]
+    networks:
+      - backend
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 应用服务器 3
+  app3:
+    image: node:18-alpine
+    container_name: enterprise-app3
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./app:/app:ro
+      - app3_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - SERVER_ID=app3
+      - DATABASE_URL=postgresql://user:password@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+    command: ["node", "server.js"]
+    networks:
+      - backend
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: enterprise-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_INITDB_ARGS="--encoding=UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d appdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: enterprise-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redispassword
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 监控服务 - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: enterprise-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring
+
+  # 监控服务 - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: enterprise-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+  # 日志收集 - ELK Stack
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: enterprise-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - logging
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: enterprise-kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - logging
+    depends_on:
+      - elasticsearch
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: enterprise-logstash
+    restart: unless-stopped
+    volumes:
+      - ./logging/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logs:/var/log/caddy:ro
+    networks:
+      - logging
+    depends_on:
+      - elasticsearch
+
+volumes:
+  caddy_data:
+    external: true
+  caddy_config:
+  postgres_data:
+  redis_data:
+  app1_data:
+  app2_data:
+  app3_data:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+  monitoring:
+    driver: bridge
+    internal: true
+  logging:
+    driver: bridge
+    internal: true

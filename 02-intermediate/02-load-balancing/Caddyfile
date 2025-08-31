@@ -1,0 +1,25 @@
+# 基本负载均衡配置
+localhost:8080 {
+    # 反向代理到多个后端服务器
+    reverse_proxy {
+        # 后端服务器列表
+        to http://localhost:3001
+        to http://localhost:3002
+        to http://localhost:3003
+        
+        # 健康检查配置
+        health_uri /health
+        health_interval 30s
+        health_timeout 5s
+        health_status 200
+        
+        # 负载均衡策略（默认为 round_robin）
+        lb_policy round_robin
+    }
+    
+    # 日志记录
+    log {
+        output file /var/log/caddy/access.log
+        format single_field common_log
+    }
+}

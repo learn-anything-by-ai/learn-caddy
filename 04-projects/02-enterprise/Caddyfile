@@ -1,0 +1,300 @@
+# 企业级应用 Caddyfile 配置
+# 高可用、高性能、高安全性配置
+
+# 全局配置
+{
+    # 服务器配置
+    servers {
+        listener_wrappers {
+            proxy_protocol
+        }
+        protocols h1 h2 h3
+        timeouts {
+            read_timeout 30s
+            read_header_timeout 10s
+            write_timeout 30s
+            idle_timeout 120s
+        }
+    }
+    
+    # 日志配置
+    log default {
+        output file /var/log/caddy/global.log {
+            roll_size 50mb
+            roll_keep 10
+            roll_keep_for 2160h
+        }
+        format json
+        level INFO
+    }
+    
+    # 限流配置
+    order rate_limit before basicauth
+    
+    # 安全配置
+    security {
+        local_certs
+    }
+}
+
+# 主应用域名
+app.company.com {
+    # 反向代理到应用服务器集群
+    reverse_proxy {
+        # 主应用服务器
+        to app1.internal:8080 app2.internal:8080 app3.internal:8080
+        
+        # 负载均衡策略
+        lb_policy weighted_round_robin
+        lb_try_duration 5s
+        lb_try_interval 500ms
+        
+        # 健康检查
+        health_uri /health
+        health_interval 10s
+        health_timeout 3s
+        health_status 200
+        
+        # 故障转移
+        fail_duration 30s
+        max_fails 3
+        unhealthy_status 500 502 503 504
+        
+        # 连接池
+        transport http {
+            max_conns_per_host 100
+            dial_timeout 10s
+            response_header_timeout 30s
+            expect_continue_timeout 3s
+            max_idle_conns 50
+            idle_conn_timeout 90s
+        }
+        
+        # 请求头设置
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        
+        # 响应头设置
+        header_down -Server
+        header_down X-Powered-By ""
+    }
+    
+    # 限流中间件
+    rate_limit {
+        zone dynamic {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+        zone static {
+            key {path}
+            events 200
+            window 1m
+        }
+    }
+    
+    # 安全头设置
+    header {
+        # 安全相关头部
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # CSP 策略
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.company.com; style-src 'self' 'unsafe-inline' https://cdn.company.com; img-src 'self' data: https:; font-src 'self' https://cdn.company.com; connect-src 'self' https://api.company.com; media-src 'self'; object-src 'none'; child-src 'none'; worker-src 'self'; manifest-src 'self';"
+        
+        # 权限策略
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+        
+        # 移除敏感信息
+        -Server
+        -X-Powered-By
+    }
+    
+    # 压缩配置
+    encode {
+        gzip 6
+        zstd
+        minimum_length 512
+        match {
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/xml*
+        }
+    }
+    
+    # 错误处理
+    handle_errors {
+        @5xx {
+            expression {http.error.status_code} >= 500
+        }
+        @4xx {
+            expression {http.error.status_code} >= 400
+            expression {http.error.status_code} < 500
+        }
+        
+        rewrite @5xx /errors/5xx.html
+        rewrite @4xx /errors/4xx.html
+        
+        root * /var/www/errors
+        file_server
+    }
+    
+    # 访问日志
+    log {
+        output file /var/log/caddy/app-access.log {
+            roll_size 100mb
+            roll_keep 30
+            roll_keep_for 2160h
+        }
+        format json {
+            time_format "2006-01-02T15:04:05.000Z07:00"
+            duration_format "ms"
+            level_key "level"
+            time_key "@timestamp"
+            message_key "message"
+            logger_key "logger"
+        }
+        include {
+            http.request.host
+            http.request.method
+            http.request.uri
+            http.request.proto
+            http.request.remote_host
+            http.request.remote_port
+            http.request.headers.User-Agent
+            http.request.headers.Referer
+            http.response.status
+            http.response.size
+            http.response.duration
+        }
+        level INFO
+    }
+}
+
+# API 子域名
+api.company.com {
+    # API 服务器反向代理
+    reverse_proxy /v1/* {
+        to api1.internal:3000 api2.internal:3000
+        lb_policy round_robin
+        health_uri /v1/health
+        health_interval 5s
+        
+        # API 特定配置
+        header_up X-API-Gateway "Caddy"
+        header_down Access-Control-Allow-Origin "*"
+        header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    }
+    
+    # API 限流
+    rate_limit {
+        zone api {
+            key {remote_host}
+            events 1000
+            window 1h
+        }
+    }
+    
+    # CORS 预检处理
+    @cors_preflight {
+        method OPTIONS
+    }
+    respond @cors_preflight 204 {
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+        Access-Control-Max-Age "86400"
+    }
+    
+    # API 文档
+    handle /docs* {
+        root * /var/www/api-docs
+        file_server
+    }
+}
+
+# 静态资源 CDN
+cdn.company.com {
+    root * /var/www/static
+    
+    # 静态文件缓存策略
+    @assets {
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    
+    header @assets {
+        Cache-Control "public, max-age=31536000, immutable"
+        Vary "Accept-Encoding"
+    }
+    
+    @html {
+        path *.html
+    }
+    
+    header @html {
+        Cache-Control "public, max-age=3600"
+    }
+    
+    # 压缩
+    encode gzip zstd
+    
+    # 文件服务器
+    file_server {
+        index off
+        browse
+    }
+}
+
+# 管理后台
+admin.company.com {
+    # 基础认证
+    basicauth {
+        admin $2a$14$hashed_password_here
+    }
+    
+    # 反向代理到管理系统
+    reverse_proxy {
+        to admin.internal:8080
+        
+        # 管理系统健康检查
+        health_uri /admin/health
+        health_interval 30s
+    }
+    
+    # 管理后台访问日志
+    log {
+        output file /var/log/caddy/admin-access.log
+        format json
+        level INFO
+    }
+}
+
+# 监控端点
+monitor.company.com {
+    # IP 白名单
+    @allowed_ips {
+        remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+    }
+    
+    handle @allowed_ips {
+        reverse_proxy {
+            to monitor.internal:3000
+        }
+    }
+    
+    handle {
+        respond "Access Denied" 403
+    }
+}
+
+# 重定向配置
+www.company.com, company.com {
+    redir https://app.company.com{uri} permanent
+}

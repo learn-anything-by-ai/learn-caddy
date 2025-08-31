@@ -54,9 +54,23 @@ caddy version
 
 ## 快速开始
 
-1. 克隆项目并进入目录
-2. 从最基础的示例开始：`cd 01-basic/01-static-files`
+1. 克隆项目并进入目录：
+```bash
+git clone <repository-url>
+cd learn-caddy
+```
+
+2. 从最基础的示例开始：
+```bash
+cd 01-basic/01-static-files
+```
+
 3. 按照每个目录下的 README 说明进行学习
+
+4. 运行演示脚本（可选）：
+```bash
+./start-demo.sh
+```
 
 ## 常用命令
 

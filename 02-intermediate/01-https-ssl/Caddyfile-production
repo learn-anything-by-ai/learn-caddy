@@ -1,0 +1,106 @@
+# 生产环境 HTTPS 配置
+# 自动从 Let's Encrypt 获取证书
+
+# 主域名配置
+example.com {
+    # 网站根目录
+    root * /var/www/html
+    
+    # Caddy 会自动启用 HTTPS 和获取 Let's Encrypt 证书
+    # 无需额外配置！
+    
+    # 文件服务
+    file_server
+    
+    # 强化安全头
+    header {
+        # HSTS - 强制 HTTPS
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        
+        # 防止点击劫持
+        X-Frame-Options "SAMEORIGIN"
+        
+        # XSS 保护
+        X-XSS-Protection "1; mode=block"
+        
+        # 防止 MIME 嗅探
+        X-Content-Type-Options "nosniff"
+        
+        # 引荐来源策略
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # 权限策略
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        
+        # 内容安全策略
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'"
+    }
+    
+    # 性能优化
+    encode {
+        gzip 6
+        zstd
+    }
+    
+    # 缓存控制
+    @static {
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+    
+    # API 路由
+    handle /api/* {
+        reverse_proxy localhost:3000 {
+            # 传递真实客户端信息
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    
+    # 访问日志
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100MB
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+# www 子域名重定向
+www.example.com {
+    redir https://example.com{uri} permanent
+}
+
+# 其他子域名
+api.example.com {
+    reverse_proxy localhost:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote_host}
+    }
+    
+    # API 专用安全头
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+}
+
+# 全局设置
+{
+    # 邮箱用于 Let's Encrypt 通知
+    email admin@example.com
+    
+    # 证书颁发机构
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+    
+    # 本地证书存储
+    storage file_system {
+        root /etc/caddy/certificates
+    }
+}

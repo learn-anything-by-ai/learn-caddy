@@ -1,0 +1,66 @@
+# 本地开发 HTTPS 配置
+# 使用 Caddy 内置的自签名证书
+
+localhost {
+    # 设置网站根目录
+    root * static
+    
+    # 使用内部证书（自签名）
+    tls internal
+    
+    # 启用文件服务
+    file_server
+    
+    # 安全头配置
+    header {
+        # 强制 HTTPS（本地测试用较短时间）
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        
+        # 防止在 iframe 中嵌入
+        X-Frame-Options "DENY"
+        
+        # 启用 XSS 保护
+        X-XSS-Protection "1; mode=block"
+        
+        # 防止 MIME 类型嗅探
+        X-Content-Type-Options "nosniff"
+        
+        # 引荐来源策略
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # 内容安全策略
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    }
+    
+    # 压缩内容
+    encode gzip
+    
+    # 日志记录
+    log {
+        output file https-local.log
+        format json {
+            time_format "2006-01-02T15:04:05Z07:00"
+        }
+        level INFO
+    }
+    
+    # 特殊路径处理
+    handle /api/* {
+        respond `{
+            "message": "HTTPS API endpoint",
+            "secure": true,
+            "protocol": "https",
+            "timestamp": "{now}",
+            "client_ip": "{remote_host}"
+        }` 200 {
+            header Content-Type "application/json"
+        }
+    }
+    
+    # 健康检查
+    handle /health {
+        respond "OK - HTTPS Enabled" 200 {
+            header Content-Type "text/plain"
+        }
+    }
+}

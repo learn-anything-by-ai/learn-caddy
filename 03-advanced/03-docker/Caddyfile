@@ -1,0 +1,58 @@
+# Docker 环境 Caddyfile
+{
+    auto_https off
+    admin 0.0.0.0:2019
+}
+
+# 主应用
+localhost:80 {
+    # 负载均衡到两个应用实例
+    reverse_proxy {
+        to app1:80
+        to app2:80
+        
+        health_uri /health
+        health_interval 30s
+        health_timeout 5s
+    }
+    
+    # 静态资源缓存
+    @static {
+        path *.css *.js *.png *.jpg *.gif *.ico
+    }
+    
+    header @static {
+        Cache-Control "public, max-age=86400"
+    }
+    
+    # 压缩
+    encode gzip
+    
+    # 日志
+    log {
+        output file /logs/docker-app.log
+        format json
+    }
+}
+
+# API 端点
+api.localhost:80 {
+    # API 路由到应用服务器
+    reverse_proxy app1:80 app2:80
+    
+    # API 专用头部
+    header {
+        Access-Control-Allow-Origin "*"
+        Content-Type "application/json"
+    }
+    
+    log {
+        output file /logs/docker-api.log
+        format json
+    }
+}
+
+# 健康检查端点
+health.localhost:80 {
+    respond "Docker Stack Healthy" 200
+}

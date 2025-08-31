@@ -1,0 +1,96 @@
+# API 网关配置
+api.localhost:8080 {
+    # 全局中间件
+    header {
+        # CORS 支持
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Authorization, Content-Type"
+        
+        # API 网关标识
+        X-API-Gateway "Caddy-Gateway-v1.0"
+    }
+    
+    # 预检请求处理
+    @options {
+        method OPTIONS
+    }
+    respond @options 204
+    
+    # API v1 路由
+    route /api/v1/users* {
+        # 用户服务
+        reverse_proxy localhost:3001 {
+            header_up Host {upstream_hostport}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    
+    route /api/v1/orders* {
+        # 订单服务
+        reverse_proxy localhost:3002 {
+            header_up Host {upstream_hostport}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    
+    # API v2 路由
+    route /api/v2/products* {
+        # 产品服务 v2
+        reverse_proxy localhost:3003 {
+            header_up Host {upstream_hostport}
+            header_up X-API-Version "v2"
+        }
+    }
+    
+    # 认证服务
+    route /auth/* {
+        reverse_proxy localhost:3004
+    }
+    
+    # 文件上传服务
+    route /upload/* {
+        reverse_proxy localhost:3005 {
+            # 增加超时时间
+            transport http {
+                read_timeout 300s
+                write_timeout 300s
+            }
+        }
+    }
+    
+    # 健康检查
+    route /health {
+        respond "API Gateway is healthy" 200
+    }
+    
+    # API 文档
+    route /docs* {
+        file_server {
+            root docs/
+        }
+    }
+    
+    # 限流 - 演示概念 (需要限流插件)
+    route /api/* {
+        header X-Rate-Limit "100/minute"
+    }
+    
+    # 监控和指标
+    route /metrics {
+        respond "Metrics endpoint (需要监控插件)" 200
+    }
+    
+    # 默认响应
+    respond "API Gateway - 请访问 /docs 查看文档" 200
+    
+    # 访问日志
+    log {
+        output file logs/api-gateway.log
+        format json {
+            time_format "2006-01-02T15:04:05Z07:00"
+        }
+    }
+}
