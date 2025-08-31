@@ -1,0 +1,92 @@
+# Caddy 学习项目 .gitignore
+
+# Caddy 相关文件
+*.log
+access.log
+error.log
+proxy.log
+routing.log
+caddy.log
+
+# Caddy 自动生成的文件
+.caddy/
+caddy_data/
+
+# Node.js 相关
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS 系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows 系统文件
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux 系统文件
+*~
+
+# 临时文件
+*.tmp
+*.temp
+*.cache
+
+# 编译输出
+dist/
+build/
+out/
+
+# 证书文件（敏感信息）
+*.pem
+*.key
+*.crt
+*.cert
+
+# 备份文件
+*.bak
+*.backup
+
+# 运行时文件
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage 目录
+coverage/
+nyc_output/
+
+# 依赖目录
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity

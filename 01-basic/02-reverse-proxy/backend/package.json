@@ -1,0 +1,23 @@
+{
+  "name": "caddy-backend-demo",
+  "version": "1.0.0",
+  "description": "Caddy 反向代理后端服务示例",
+  "main": "server1.js",
+  "scripts": {
+    "server1": "node server1.js",
+    "server2": "node server2.js",
+    "start": "npm run server1",
+    "dev": "concurrently \"npm run server1\" \"npm run server2\"",
+    "install-global": "npm install -g concurrently"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  },
+  "keywords": ["caddy", "proxy", "express", "demo"],
+  "author": "Caddy Learning",
+  "license": "MIT"
+}

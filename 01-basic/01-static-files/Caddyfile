@@ -1,0 +1,24 @@
+# 最简单的 Caddy 配置
+# 监听 localhost:8080，提供 www 目录的静态文件服务
+
+localhost:8080 {
+    # 设置网站根目录为 www 文件夹
+    root * www
+    
+    # 启用文件服务器，允许目录浏览
+    # browse 参数允许在没有 index.html 时浏览目录结构
+    file_server browse
+    
+    # 可选：启用压缩以提高性能
+    encode gzip
+    
+    # 可选：添加安全头
+    header {
+        # 防止在 iframe 中嵌入
+        X-Frame-Options "DENY"
+        # 启用 XSS 保护
+        X-XSS-Protection "1; mode=block"
+        # 防止 MIME 类型嗅探
+        X-Content-Type-Options "nosniff"
+    }
+}

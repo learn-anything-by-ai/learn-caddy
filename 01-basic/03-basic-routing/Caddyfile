@@ -1,0 +1,111 @@
+# 基础路由配置示例
+# 演示不同的路由匹配和处理方式
+
+localhost:8080 {
+    # 设置根目录
+    root * static
+    
+    # 主页处理 - 最高优先级
+    handle / {
+        file_server
+    }
+    
+    # API 路由 - v1 版本重写为 v2
+    handle /api/v1/* {
+        # 将 v1 API 重写为 v2
+        rewrite * /api/v2{path}
+        respond "API v1 已重定向到 v2: {path}" 200
+    }
+    
+    # API 路由 - v2 版本
+    handle /api/v2/* {
+        respond "API v2 endpoint: {path}" 200 {
+            header Content-Type "application/json"
+        }
+    }
+    
+    # 博客路由
+    handle /blog/* {
+        # 移除 /blog 前缀
+        rewrite * {path_regexp ^/blog(/.*)$ $1}
+        # 如果路径为空，重定向到 /
+        @empty_path path /
+        rewrite @empty_path /index.html
+        
+        # 设置博客文件根目录
+        root * static/blog
+        file_server
+    }
+    
+    # 管理后台路由 - 需要特殊处理
+    handle /admin/* {
+        # 简单的访问控制（实际项目中应使用更安全的方法）
+        @has_admin_token query token=admin123
+        handle @has_admin_token {
+            root * static/admin
+            file_server
+        }
+        
+        # 没有正确令牌时重定向到登录页
+        handle {
+            redir /login.html
+        }
+    }
+    
+    # 重定向示例
+    redir /old-page /new-page.html 301
+    redir /home / 302
+    
+    # 图片代理 - 将图片请求代理到 CDN
+    handle /images/* {
+        # 移除 /images 前缀并代理到外部 CDN
+        rewrite * {path_regexp ^/images/(.*)$ /$1}
+        reverse_proxy https://picsum.photos {
+            header_up Host picsum.photos
+        }
+    }
+    
+    # 健康检查端点
+    handle /health {
+        respond "OK" 200 {
+            header Content-Type "text/plain"
+            header X-Health-Check "true"
+        }
+    }
+    
+    # 版本信息端点
+    handle /version {
+        respond `{
+            "version": "1.0.0",
+            "server": "Caddy",
+            "timestamp": "{now}",
+            "path": "{path}",
+            "method": "{method}",
+            "remote_ip": "{remote_host}"
+        }` 200 {
+            header Content-Type "application/json"
+        }
+    }
+    
+    # 静态文件处理（默认）
+    file_server
+    
+    # 404 错误处理
+    handle_errors {
+        @404 {
+            expression {http.error.status_code} == 404
+        }
+        rewrite @404 /templates/404.html
+        file_server
+    }
+    
+    # 日志记录
+    log {
+        output file routing.log
+        format json {
+            time_format "2006-01-02T15:04:05Z07:00"
+            message_key "msg"
+        }
+        level INFO
+    }
+}

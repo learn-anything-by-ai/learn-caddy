@@ -1,0 +1,91 @@
+# 高级反向代理配置
+# 多后端负载均衡和高级功能
+
+localhost:8080 {
+    # 静态文件根目录
+    root * static
+    
+    # API 路由 - 负载均衡到多个后端
+    reverse_proxy /api/* {
+        # 多个后端服务器
+        to localhost:3001
+        to localhost:3002
+        
+        # 负载均衡策略
+        # 可选：round_robin（默认）、least_conn、random、ip_hash
+        lb_policy round_robin
+        
+        # 健康检查配置
+        health_uri /health
+        health_interval 10s
+        health_timeout 3s
+        health_status 200
+        
+        # 故障转移
+        fail_duration 30s
+        max_fails 3
+        
+        # 请求头修改
+        header_up Host {upstream_hostport}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Port {server_port}
+        
+        # 响应头修改
+        header_down -Server
+        header_down X-Powered-By ""
+        
+        # 超时设置
+        transport http {
+            dial_timeout 5s
+            response_header_timeout 10s
+        }
+    }
+    
+    # WebSocket 代理
+    reverse_proxy /ws/* {
+        to localhost:3001
+        
+        # WebSocket 特殊配置
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+    
+    # 基于路径的不同后端
+    reverse_proxy /users/* {
+        to localhost:3003  # 用户服务
+    }
+    
+    reverse_proxy /orders/* {
+        to localhost:3004  # 订单服务
+    }
+    
+    # 静态文件缓存
+    @static {
+        path *.css *.js *.png *.jpg *.gif *.ico
+    }
+    header @static Cache-Control "public, max-age=86400"
+    
+    # 默认文件服务
+    file_server
+    
+    # 压缩
+    encode gzip
+    
+    # 访问控制
+    @admin {
+        path /admin/*
+    }
+    basicauth @admin {
+        admin $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNqBZExw.4Y...
+    }
+    
+    # 速率限制（需要相关插件）
+    # rate_limit {
+    #     zone static_api {
+    #         key {remote_host}
+    #         events 100
+    #         window 1m
+    #     }
+    # }
+}
