@@ -13,13 +13,13 @@ localhost:8080 {
     # API 路由 - v1 版本重写为 v2
     handle /api/v1/* {
         # 将 v1 API 重写为 v2
-        rewrite * /api/v2{path}
-        respond "API v1 已重定向到 v2: {path}" 200
+        rewrite * /api/v2{uri}
+        respond "API v1 已重定向到 v2: {uri}" 200
     }
     
     # API 路由 - v2 版本
     handle /api/v2/* {
-        respond "API v2 endpoint: {path}" 200 {
+        respond "API v2 endpoint: {uri}" 200 {
             header Content-Type "application/json"
         }
     }
@@ -27,7 +27,7 @@ localhost:8080 {
     # 博客路由
     handle /blog/* {
         # 移除 /blog 前缀
-        rewrite * {path_regexp ^/blog(/.*)$ $1}
+        uri strip_prefix /blog
         # 如果路径为空，重定向到 /
         @empty_path path /
         rewrite @empty_path /index.html
@@ -59,7 +59,7 @@ localhost:8080 {
     # 图片代理 - 将图片请求代理到 CDN
     handle /images/* {
         # 移除 /images 前缀并代理到外部 CDN
-        rewrite * {path_regexp ^/images/(.*)$ /$1}
+        uri strip_prefix /images
         reverse_proxy https://picsum.photos {
             header_up Host picsum.photos
         }
@@ -75,14 +75,7 @@ localhost:8080 {
     
     # 版本信息端点
     handle /version {
-        respond `{
-            "version": "1.0.0",
-            "server": "Caddy",
-            "timestamp": "{now}",
-            "path": "{path}",
-            "method": "{method}",
-            "remote_ip": "{remote_host}"
-        }` 200 {
+        respond "{\"version\": \"1.0.0\", \"server\": \"Caddy\", \"timestamp\": \"{time.now}\", \"path\": \"{uri}\", \"method\": \"{method}\", \"remote_ip\": \"{remote_host}\"}" 200 {
             header Content-Type "application/json"
         }
     }
