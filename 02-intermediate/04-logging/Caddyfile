@@ -1,56 +1,49 @@
+# 全局日志配置（可选）
+{
+	# 错误日志 - 控制台输出
+	log {
+		output stdout
+		format console
+		level ERROR
+	}
+}
+
 # 日志配置示例
 localhost:8080 {
-    # 静态文件服务
-    file_server
-    
-    # 访问日志 - JSON 格式
-    log access {
-        output file logs/access.json
-        format json {
-            time_format "2006-01-02T15:04:05Z07:00"
-            message_key "message"
-        }
-        level INFO
-    }
-    
-    # 错误日志 - 控制台输出
-    log error {
-        output stdout
-        format console
-        level ERROR
-    }
-    
-    # 调试日志 - 开发环境使用
-    log debug {
-        output file logs/debug.log
-        format single_field common_log
-        level DEBUG
-    }
-    
-    # 响应头 - 添加服务器信息
-    header {
-        Server "Caddy-Learning-Demo"
-        X-Request-ID {uuid}
-    }
-    
-    # 测试错误日志的路由
-    route /error-test {
-        respond "触发错误测试" 500
-    }
-    
-    # API 路由 - 记录详细信息
-    route /api/* {
-        header X-API-Call "true"
-        respond "API 调用已记录"
-    }
+	# 静态文件服务
+	file_server
+
+	# 访问日志 - JSON 格式
+	log {
+		output file logs/access.json
+		format json
+		level INFO
+	}
+
+	# 响应头 - 添加服务器信息
+	header {
+		Server "Caddy-Learning-Demo"
+		X-Request-ID {uuid}
+	}
+
+	# 测试错误日志的路由
+	route /error-test {
+		respond "触发错误测试" 500
+	}
+
+	# API 路由 - 记录详细信息
+	route /api/* {
+		header X-API-Call "true"
+		respond "API 调用已记录"
+	}
 }
 
 # 管理接口 - 分离的日志配置
 localhost:2019 {
-    # 管理 API 的单独日志
-    log {
-        output file logs/admin.log
-        format json
-        level WARN
-    }
+	# 管理 API 的单独日志
+	log {
+		output file logs/admin.log
+		format json
+		level WARN
+	}
 }

@@ -2,9 +2,9 @@
 localhost:8080 {
     reverse_proxy {
         # 后端服务器配置
-        to http://localhost:3001 max_conns 100
-        to http://localhost:3002 max_conns 100
-        to http://localhost:3003 max_conns 50
+        to http://localhost:3001
+        to http://localhost:3002  
+        to http://localhost:3003
         
         # 负载均衡策略 - 最少连接
         lb_policy least_conn
@@ -36,7 +36,7 @@ localhost:8080 {
     
     # 访问日志
     log {
-        output file /var/log/caddy/loadbalancer.log
+        output file ./logs/loadbalancer.log
         format json
     }
 }

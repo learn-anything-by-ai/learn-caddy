@@ -9,31 +9,17 @@
             proxy_protocol
         }
         protocols h1 h2 h3
-        timeouts {
-            read_timeout 30s
-            read_header_timeout 10s
-            write_timeout 30s
-            idle_timeout 120s
-        }
     }
     
     # 日志配置
     log default {
-        output file /var/log/caddy/global.log {
+        output file ./logs/global.log {
             roll_size 50mb
             roll_keep 10
             roll_keep_for 2160h
         }
         format json
         level INFO
-    }
-    
-    # 限流配置
-    order rate_limit before basicauth
-    
-    # 安全配置
-    security {
-        local_certs
     }
 }
 
@@ -45,7 +31,7 @@ app.company.com {
         to app1.internal:8080 app2.internal:8080 app3.internal:8080
         
         # 负载均衡策略
-        lb_policy weighted_round_robin
+        lb_policy round_robin
         lb_try_duration 5s
         lb_try_interval 500ms
         
@@ -62,12 +48,9 @@ app.company.com {
         
         # 连接池
         transport http {
-            max_conns_per_host 100
             dial_timeout 10s
             response_header_timeout 30s
             expect_continue_timeout 3s
-            max_idle_conns 50
-            idle_conn_timeout 90s
         }
         
         # 请求头设置
@@ -79,20 +62,6 @@ app.company.com {
         # 响应头设置
         header_down -Server
         header_down X-Powered-By ""
-    }
-    
-    # 限流中间件
-    rate_limit {
-        zone dynamic {
-            key {remote_host}
-            events 100
-            window 1m
-        }
-        zone static {
-            key {path}
-            events 200
-            window 1m
-        }
     }
     
     # 安全头设置
@@ -147,31 +116,15 @@ app.company.com {
     
     # 访问日志
     log {
-        output file /var/log/caddy/app-access.log {
+        output file ./logs/app-access.log {
             roll_size 100mb
             roll_keep 30
             roll_keep_for 2160h
         }
         format json {
             time_format "2006-01-02T15:04:05.000Z07:00"
-            duration_format "ms"
-            level_key "level"
             time_key "@timestamp"
             message_key "message"
-            logger_key "logger"
-        }
-        include {
-            http.request.host
-            http.request.method
-            http.request.uri
-            http.request.proto
-            http.request.remote_host
-            http.request.remote_port
-            http.request.headers.User-Agent
-            http.request.headers.Referer
-            http.response.status
-            http.response.size
-            http.response.duration
         }
         level INFO
     }
@@ -193,24 +146,16 @@ api.company.com {
         header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     }
     
-    # API 限流
-    rate_limit {
-        zone api {
-            key {remote_host}
-            events 1000
-            window 1h
-        }
-    }
-    
     # CORS 预检处理
     @cors_preflight {
         method OPTIONS
     }
-    respond @cors_preflight 204 {
-        Access-Control-Allow-Origin "*"
-        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-        Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-        Access-Control-Max-Age "86400"
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+        header Access-Control-Max-Age "86400"
+        respond 204
     }
     
     # API 文档
@@ -270,7 +215,7 @@ admin.company.com {
     
     # 管理后台访问日志
     log {
-        output file /var/log/caddy/admin-access.log
+        output file ./logs/admin-access.log
         format json
         level INFO
     }

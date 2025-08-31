@@ -19,7 +19,7 @@ localhost:8080 {
     
     # 日志记录
     log {
-        output file /var/log/caddy/access.log
-        format single_field common_log
+        output file ./logs/access.log
+        format console
     }
 }
